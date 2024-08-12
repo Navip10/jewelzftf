@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
-const ColorPicker = ({ colors, onSelectColor, modelIdentifier }) => {
+const ColorPicker = ({ colors, onSelectColor }) => {
   const [selectedColor, setSelectedColor] = useState(colors[0]);
 
   const handleColorClick = (color) => {
     setSelectedColor(color);
-    onSelectColor(color, modelIdentifier); // Pass the model identifier along with the color
+    onSelectColor(color); // Directly apply color without needing a model identifier
   };
 
   return (
