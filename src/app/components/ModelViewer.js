@@ -61,18 +61,18 @@ const ModelViewer = ({ frameColor, lensColor }) => {
   }, [lensColor, scene3, scene5]);
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-screen ml-20 mr-20">
       <Canvas>
         <ambientLight intensity={0.5} />
         <directionalLight position={[12, 12, 5]} intensity={1} />
         <Suspense fallback={null}>
-          <primitive object={scene1} scale={0.8} position={[1, -2, 0]} />
-          <primitive object={scene2} scale={0.8} position={[1, -2, 0]} /> {/* Non-changing */}
-          <primitive object={scene3} scale={0.8} position={[1, -2, 0]} />
-          <primitive object={scene4} scale={0.8} position={[1, -2, 0]} /> {/* Non-changing */}
-          <primitive object={scene5} scale={0.8} position={[1, -2, 0]} />
-          <primitive object={scene6} scale={0.8} position={[1, -2, 0]} /> {/* Non-changing */}
-          <primitive object={scene7} scale={0.8} position={[1, -2, 0]} />
+          <primitive object={scene1} scale={0.8} position={[1.4, -3.5, 0]} />
+          <primitive object={scene2} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
+          <primitive object={scene3} scale={0.8} position={[1.4, -3.5, 0]} />
+          <primitive object={scene4} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
+          <primitive object={scene5} scale={0.8} position={[1.4, -3.5, 0]} />
+          <primitive object={scene6} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
+          <primitive object={scene7} scale={0.8} position={[1.4, -3.5, 0]} />
         </Suspense>
         <OrbitControls ref={orbitRef} enableZoom={false} />
       </Canvas>

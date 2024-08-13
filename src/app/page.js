@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import ModelViewer from './components/ModelViewer';
 import Layout from './components/Layout';
+import CustomLowBar from './components/CustomLowBar';
 
 const CustomizationPanelNoSSR = dynamic(
   () => import('./components/CustomizationPanel'),
@@ -28,22 +29,12 @@ export default function Home() {
         <title>Sunglasses Customization App</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div className="flex flex-col md:flex-row w-full items-center justify-center bg-stone-300">
-        <div className='w-full md:w-2/3'>
+      <div className="flex flex-col md:flex-row w-full h-screen items-center justify-center bg-stone-300">
+        <div className='w-full mr-60 md:w-2/3 mb-80'>
           <ModelViewer frameColor={frameColor} lensColor={lensColor} />
-          <footer className="p-4 flex flex-col md:flex-row justify-between items-center ml-40 mb-96 mx-5 rounded-xl bg-white shadow-md">
-            <div className="flex gap-24">
-              <button className="hover:bg-black hover:text-white p-2 rounded">1. Description</button>
-              <button className="hover:bg-black hover:text-white p-2 rounded">2. Customize</button>
-              <button className="hover:bg-black hover:text-white p-2 rounded">3. Lens</button>
-            </div>
-            <div className="flex gap-1">
-              <button className="p-2 rounded-lg border-2 border-black bg-red-100 w-24">Favorite</button>
-              <button className="p-2 rounded-lg border-2 border-black bg-black text-white w-24">Next</button>
-            </div>
-          </footer>
+          <CustomLowBar />
         </div>
-        <div className="w-full md:w-1/3 p-4">
+        <div className="flex w-full md:w-1/3 p-4 h-screen items-center justify-center">
           <CustomizationPanelNoSSR 
             onFrameColorSelect={handleFrameColorChange} 
             onLensColorSelect={handleLensColorChange} 
