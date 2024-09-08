@@ -1,79 +1,110 @@
-import { Canvas } from '@react-three/fiber';
-import { Suspense, useRef, useEffect } from 'react';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, useRef, useEffect, useState } from 'react';
+import { OrbitControls, useGLTF, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-const ModelViewer = ({ frameColor, lensColor }) => {
-  // Load all relevant models
-  const { scene: scene1 } = useGLTF('./models/Cartier1.glb');  // Frame
-  const { scene: scene2 } = useGLTF('./models/Cartier2.glb');  // Non-changing
-  const { scene: scene3 } = useGLTF('./models/Cartier3.glb');  // Lens
-  const { scene: scene4 } = useGLTF('./models/Cartier4.glb');  // Non-changing
-  const { scene: scene5 } = useGLTF('./models/Cartier5.glb');  // Lens
-  const { scene: scene6 } = useGLTF('./models/Cartier6.glb');  // Non-changing
-  const { scene: scene7 } = useGLTF('./models/Cartier7.glb');  // Frame
-
-  const orbitRef = useRef();
+const SwappableModel = ({ partPath, position, scale, animationConfig, isVisible }) => {
+  const { scene } = useGLTF(partPath);
+  const meshRef = useRef();
 
   useEffect(() => {
-    if (orbitRef.current) {
-      orbitRef.current.target.set(0, 0, 0);
-      orbitRef.current.object.position.set(0, 0, 2);
-      orbitRef.current.update();
+    if (meshRef.current) {
+      meshRef.current.visible = isVisible;
     }
-  }, []);
+  }, [isVisible]);
 
-  // Function to apply color to the relevant meshes in a scene
-  const applyColorToMeshes = (scene, meshNames, color) => {
-    scene.traverse((child) => {
-      if (child.isMesh && meshNames.includes(child.name)) {
-        console.log('Inspecting Material for:', child.name);
-        console.log('Material:', child.material);
-
-        // Clone and adjust material
-        const material = child.material.clone();
-        material.color.set(color);
-        material.map = null;
-        material.emissiveMap = null;
-        material.alphaMap = null;
-        material.envMap = null;
-        material.metalness = 0.1;
-        material.roughness = 0.7;
-        material.needsUpdate = true;
-
-        child.material = material;
-
-        console.log(`Applied color to ${child.name}`);
-      }
-    });
-  };
-
-  // Apply frame color to Cartier1 and Cartier7 models
-  useEffect(() => {
-    if (scene1) applyColorToMeshes(scene1, ['Mesh016_1'], frameColor); // Replace 'Mesh016_1' with actual mesh name in Cartier1
-    if (scene7) applyColorToMeshes(scene7, ['Mesh036_1'], frameColor); // Replace 'Mesh036_1' with actual mesh name in Cartier7
-  }, [frameColor, scene1, scene7]);
-
-  // Apply lens color to Cartier3 and Cartier5 models
-  useEffect(() => {
-    if (scene3) applyColorToMeshes(scene3, ['glasses023'], lensColor); // Replace 'glasses023' with actual mesh name in Cartier3
-    if (scene5) applyColorToMeshes(scene5, ['glasses025'], lensColor); // Replace 'glasses025' with actual mesh name in Cartier5
-  }, [lensColor, scene3, scene5]);
+  useFrame(() => {
+    if (animationConfig && meshRef.current) {
+      const { position: targetPosition, progress } = animationConfig;
+      meshRef.current.position.lerp(targetPosition, progress);
+    }
+  });
 
   return (
-    <div className="w-full h-screen ml-20 mr-20">
+    <primitive object={scene} position={position} scale={scale} ref={meshRef} />
+  );
+};
+
+const AnimatedModel = ({ frameColor, lensColor }) => {
+  const { camera } = useThree();
+  const groupRef = useRef();
+
+  const [animationProgress, setAnimationProgress] = useState(0);
+  const [isOldLensesVisible, setIsOldLensesVisible] = useState(true);
+  const [isHeartLensesVisible, setIsHeartLensesVisible] = useState(false);
+
+  const animationDelay = 5;
+  const oldLensesHideTime = 3;
+
+  useEffect(() => {
+    if (groupRef.current) {
+      const box = new THREE.Box3().setFromObject(groupRef.current);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = camera.fov * (Math.PI / 180);
+      const cameraZ = Math.abs(maxDim / (2 * Math.tan(fov / 2))) * 1.5;
+
+      camera.position.set(0, 0, cameraZ);
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+      camera.updateProjectionMatrix();
+    }
+  }, [camera]);
+
+  useFrame((state) => {
+    const elapsedTime = state.clock.getElapsedTime();
+
+    if (elapsedTime < animationDelay) {
+      return; 
+    }
+
+    const adjustedElapsedTime = elapsedTime - animationDelay;
+    const transitionTime = 5;
+    const progress = Math.min(adjustedElapsedTime / transitionTime, 1);
+    setAnimationProgress(progress);
+
+    if (adjustedElapsedTime > oldLensesHideTime) {
+      setIsOldLensesVisible(false);
+      setIsHeartLensesVisible(true);
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, 0, 0]} scale={1}>
+      {/* Original glasses parts */}
+      <SwappableModel partPath='./models/Cartier1.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier2.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier3.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={isOldLensesVisible}
+        animationConfig={{ position: new THREE.Vector3(3, 0, 0), progress: animationProgress }} />
+      <SwappableModel partPath='./models/Cartier4.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier5.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={isOldLensesVisible}
+        animationConfig={{ position: new THREE.Vector3(-3, 0, 0), progress: animationProgress }} />
+      <SwappableModel partPath='./models/Cartier6.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier7.glb' position={[1.4, -3.5, 0]} scale={0.8} isVisible={true} />
+
+      {/* Heart-shaped glasses parts */}
+      <SwappableModel partPath='./models/heartlenseright.glb' position={[0, 0, 0]} scale={0.8} isVisible={isHeartLensesVisible}
+        animationConfig={{ position: new THREE.Vector3(1.65, -3.5, .05), progress: animationProgress }} />
+      <SwappableModel partPath='./models/heartlenseleft.glb' position={[0, 0, 0]} scale={0.8} isVisible={isHeartLensesVisible}
+        animationConfig={{ position: new THREE.Vector3(1.15, -3.5, .05), progress: animationProgress }} />
+    </group>
+  );
+};
+
+const ModelViewer = ({ frameColor, lensColor }) => {
+  const orbitRef = useRef();
+
+  return (
+    <div className="flex items-center justify-center w-full h-screen">
       <Canvas>
         <ambientLight intensity={0.5} />
         <directionalLight position={[12, 12, 5]} intensity={1} />
+        
+        {/* Full-screen HDR environment */}
         <Suspense fallback={null}>
-          <primitive object={scene1} scale={0.8} position={[1.4, -3.5, 0]} />
-          <primitive object={scene2} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
-          <primitive object={scene3} scale={0.8} position={[1.4, -3.5, 0]} />
-          <primitive object={scene4} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
-          <primitive object={scene5} scale={0.8} position={[1.4, -3.5, 0]} />
-          <primitive object={scene6} scale={0.8} position={[1.4, -3.5, 0]} /> {/* Non-changing */}
-          <primitive object={scene7} scale={0.8} position={[1.4, -3.5, 0]} />
+          <Environment background files="/models/2.hdr" />
+          <AnimatedModel frameColor={frameColor} lensColor={lensColor} />
         </Suspense>
+        
         <OrbitControls ref={orbitRef} enableZoom={false} />
       </Canvas>
     </div>
