@@ -23,4 +23,3 @@ const ColorPicker = ({ colors, onSelectColor }) => {
 };
 
 export default ColorPicker;
-
