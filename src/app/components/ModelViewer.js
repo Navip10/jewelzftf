@@ -1,21 +1,35 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, useRef, useEffect, useState } from 'react';
+import { Suspense, useRef, useEffect } from 'react';
 import { OrbitControls, useGLTF, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
-import { useTexture } from '@react-three/drei'; // Ensure this is imported at the top
+import { useTexture } from '@react-three/drei';
+
+/** Function to load the font based on user selection */
+const loadFont = (fontChoice) => {
+  switch (fontChoice) {
+    case 'helvetiker': return '/fonts/helvetiker_regular.typeface.json';
+    case 'optimer': return '/fonts/optimer_regular.typeface.json';
+    case 'gentilis': return '/fonts/gentilis_regular.typeface.json';
+    case 'droid': return '/fonts/droid_sans_regular.typeface.json';
+    default: return '/fonts/helvetiker_regular.typeface.json';
+  }
+};
 
 /** Component for Swappable Model */
-const SwappableModel = ({ partPath, position, scale, color, isVisible }) => {
+const SwappableModel = ({ partPath, position, scale, color, isVisible, animationRef }) => {
   const { scene } = useGLTF(partPath);
   const meshRef = useRef();
 
   useEffect(() => {
     if (meshRef.current) {
       meshRef.current.visible = isVisible;
+      if (animationRef) {
+        animationRef.current = meshRef.current;
+      }
 
       // Apply color to all meshes in the scene
       meshRef.current.traverse((child) => {
@@ -31,14 +45,14 @@ const SwappableModel = ({ partPath, position, scale, color, isVisible }) => {
   return <primitive object={scene} position={position} scale={scale} ref={meshRef} />;
 };
 
-/** Text Mesh Creation */
+/** Function to create the 3D Text Mesh */
 const createTextMesh = (text, fontPath, textColor, textSize, scene, hoveringTextRef) => {
   const loader = new FontLoader();
   loader.load(fontPath, (font) => {
     const textGeometry = new TextGeometry(text, {
       font: font,
       size: textSize,
-      height: 0.001,
+      height: 0.01,
       curveSegments: 12,
       bevelEnabled: true,
       bevelThickness: 0.01,
@@ -46,7 +60,7 @@ const createTextMesh = (text, fontPath, textColor, textSize, scene, hoveringText
       bevelOffset: 0,
       bevelSegments: 3,
     });
-    
+
     const textMaterial = new THREE.MeshStandardMaterial({
       color: textColor,
       metalness: 0.6,
@@ -59,37 +73,70 @@ const createTextMesh = (text, fontPath, textColor, textSize, scene, hoveringText
   });
 };
 
-/** Main 3D Animation Component */
-const AnimatedModel = (props) => {
-  const {
-    frameColor,
-    lensColor,
-    text,
-    fontPath,
-    textColor,
-    textSize,
-    diamondSize, // Added for diamond size
-    isPlacingText,
-    isPlacingDiamond,
-    setIsPlacingText,
-    setIsPlacingDiamond,
-    rotateText,
-    rotateDiamond,
-  } = props;
-
+/** Main 3D Component that uses useThree */
+const ModelContent = ({
+  frameColor,
+  lensColor,
+  isPlacingText,
+  isPlacingDiamond,
+  rotateText,
+  rotateDiamond,
+  triggerLensSwap,
+  text,
+  textSize,
+  textColor,
+  fontChoice, // Pass font choice to load the correct font
+  diamondSize,
+  setIsPlacingText,
+  setIsPlacingDiamond
+}) => {
   const { camera, scene, gl } = useThree();
   const groupRef = useRef();
   const hoveringTextRef = useRef();
   const hoveringDiamondRef = useRef();
-
-  const { scene: diamondScene } = useGLTF('./models/diamond.glb');
-  const diamondTexture = useTexture('/Textures/DiamondTexture.jpg'); // Load the diamond texture
-  useEffect(() => {
-    console.log('Diamond Texture Loaded:', diamondTexture); // Log the loaded texture
-  }, [diamondTexture]);
-
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
+
+  const { scene: diamondScene } = useGLTF('./models/diamond.glb');
+  const diamondTexture = useTexture('/Textures/DiamondTexture.jpg');
+
+  useEffect(() => {
+    if (isPlacingText && text) {
+      const fontPath = loadFont(fontChoice); // Use loadFont to get the correct font path
+      createTextMesh(text, fontPath, textColor, textSize, scene, hoveringTextRef);
+    }
+
+    if (isPlacingDiamond && diamondScene) {
+      const diamondMesh = diamondScene.clone();
+      diamondTexture.wrapS = THREE.RepeatWrapping;
+      diamondTexture.wrapT = THREE.RepeatWrapping;
+      diamondTexture.repeat.set(1, 1);
+
+      diamondMesh.traverse((child) => {
+        if (child.isMesh) {
+          child.material = new THREE.MeshStandardMaterial({
+            map: diamondTexture,
+            transparent: true,
+            opacity: 1,
+            metalness: 1,
+            roughness: 0,
+          });
+          child.scale.set(diamondSize, diamondSize, diamondSize);
+        }
+      });
+
+      scene.add(diamondMesh);
+      hoveringDiamondRef.current = diamondMesh;
+    }
+
+    gl.domElement.addEventListener('mousemove', handleMouseMove);
+    gl.domElement.addEventListener('click', handleMouseClick);
+
+    return () => {
+      gl.domElement.removeEventListener('mousemove', handleMouseMove);
+      gl.domElement.removeEventListener('click', handleMouseClick);
+    };
+  }, [isPlacingText, isPlacingDiamond, text, fontChoice, textColor, textSize, diamondScene, diamondSize, gl.domElement, scene, diamondTexture]);
 
   const handleMouseMove = (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -112,209 +159,51 @@ const AnimatedModel = (props) => {
     if (isPlacingDiamond && hoveringDiamondRef.current) setIsPlacingDiamond(false);
   };
 
-  useEffect(() => {
-    if (isPlacingText && text) {
-      createTextMesh(text, fontPath, textColor, textSize, scene, hoveringTextRef);
-    }
-
-    if (isPlacingDiamond && diamondScene) {
-      const diamondMesh = diamondScene.clone();
-      diamondTexture.wrapS = THREE.RepeatWrapping; // Enable horizontal tiling
-      diamondTexture.wrapT = THREE.RepeatWrapping; // Enable vertical tiling
-      diamondTexture.repeat.set(1, 1); // Set the number of times the texture repeats
-
-      diamondMesh.traverse((child) => {
-        if (child.isMesh) {
-          child.material = new THREE.MeshStandardMaterial({
-            map: diamondTexture,
-            transparent: true,
-            opacity: 1,
-            metalness: 1,
-            roughness: 0,
-          });
-          // Adjust diamond size based on the slider
-          child.scale.set(diamondSize, diamondSize, diamondSize);
-        }
-      });
-
-      scene.add(diamondMesh);
-      hoveringDiamondRef.current = diamondMesh; // Update the reference
-    }
-
-    gl.domElement.addEventListener('mousemove', handleMouseMove);
-    gl.domElement.addEventListener('click', handleMouseClick);
-
-    return () => {
-      gl.domElement.removeEventListener('mousemove', handleMouseMove);
-      gl.domElement.removeEventListener('click', handleMouseClick);
-    };
-  }, [isPlacingText, isPlacingDiamond, text, fontPath, textColor, textSize, diamondScene, diamondSize]);
-
   useFrame(() => {
     if (rotateText && hoveringTextRef.current) {
-      hoveringTextRef.current.rotation.y = Math.PI; // Rotate text 180 degrees
-    } 
+      hoveringTextRef.current.rotation.y = Math.PI;
+    }
     if (rotateDiamond && hoveringDiamondRef.current) {
-      hoveringDiamondRef.current.rotation.x = Math.PI / -2; // Lock diamond rotation at 90 degrees
+      hoveringDiamondRef.current.rotation.x = Math.PI / -2;
+    }
+    if (triggerLensSwap) {
+      // Add lens swap animation logic here
     }
   });
 
   return (
     <group ref={groupRef} position={[0, 0, 0]} scale={1}>
-      <SwappableModel partPath='./models/Cartier1.glb' position={[1.4, -3.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier2.glb' position={[1.4, -3.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier3.glb' position={[1.4, -3.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier4.glb' position={[1.4, -3.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier5.glb' position={[1.4, -3.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier6.glb' position={[1.4, -3.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
-      <SwappableModel partPath='./models/Cartier7.glb' position={[1.4, -3.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      {/* Swappable Models */}
+      <SwappableModel partPath='./models/Cartier1.glb' position={[1.4, -1.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier2.glb' position={[1.4, -1.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier3.glb' position={[1.4, -1.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier4.glb' position={[1.4, -1.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier5.glb' position={[1.4, -1.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier6.glb' position={[1.4, -1.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      <SwappableModel partPath='./models/Cartier7.glb' position={[1.4, -1.5, 0]} scale={0.8} color={frameColor} isVisible={true} />
+      <SwappableModel partPath='./models/heartlenseleft.glb' position={[-100, -3.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
+      <SwappableModel partPath='./models/heartlenseright.glb' position={[100, -3.5, 0]} scale={0.8} color={lensColor} isVisible={true} />
     </group>
   );
 };
 
 /** Main Viewer */
-const ModelViewer = ({ frameColor, lensColor }) => {
-  const [text, setText] = useState('');
-  const [fontChoice, setFontChoice] = useState('helvetiker');
-  const [textColor, setTextColor] = useState('#000000');
-  const [textSize, setTextSize] = useState(0.1);
-  const [diamondSize, setDiamondSize] = useState(1); // Add state for diamond size
-  const [isPlacingText, setIsPlacingText] = useState(false);
-  const [isPlacingDiamond, setIsPlacingDiamond] = useState(false);
-  const [rotateText, setRotateText] = useState(false);
-  const [rotateDiamond, setRotateDiamond] = useState(false);
-
-  const handleAddText = () => setIsPlacingText(true);
-  const handleAddDiamond = () => setIsPlacingDiamond(true);
-  const handleRotateText = () => setRotateText(!rotateText);
-  const handleRotateDiamond = () => setRotateDiamond(!rotateDiamond);
-
+const ModelViewer = (props) => {
   return (
-    <div className="relative w-full h-screen">
-      <Canvas className="absolute inset-0">
+    <div className="w-screen h-[calc(100vh-100px)] overflow-hidden relative">
+      <Canvas className="w-full h-full">
         <ambientLight intensity={0.5} />
         <directionalLight position={[12, 12, 5]} intensity={1} />
 
         <Suspense fallback={null}>
           <Environment background files="/models/2.hdr" />
-          <AnimatedModel
-            frameColor={frameColor}
-            lensColor={lensColor}
-            text={text}
-            fontPath={loadFont(fontChoice)}
-            textColor={textColor}
-            textSize={textSize}
-            diamondSize={diamondSize} // Pass diamond size to AnimatedModel
-            isPlacingText={isPlacingText}
-            isPlacingDiamond={isPlacingDiamond}
-            setIsPlacingText={setIsPlacingText}
-            setIsPlacingDiamond={setIsPlacingDiamond}
-            rotateText={rotateText}
-            rotateDiamond={rotateDiamond}
-          />
+          <ModelContent {...props} />
         </Suspense>
 
         <OrbitControls enableZoom={false} />
       </Canvas>
-
-{/* Luxurious Bottom Menu */}
-<div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 p-6 flex items-center justify-around shadow-lg">
-  {/* Custom Text Input */}
-  <div className="w-1/5">
-    <label className="block text-md font-light text-gray-300">Custom Text</label>
-    <input
-      type="text"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      className="p-2 bg-transparent border border-gray-400 text-gray-100 rounded w-full mb-3"
-      placeholder="Enter custom text"
-    />
-    <button onClick={handleAddText} className="py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 w-full">
-      Place Text
-    </button>
-    <button onClick={handleRotateText} className="py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 w-full mt-2">
-      Rotate Text
-    </button>
-  </div>
-
-  {/* Font Selector */}
-  <div className="w-1/5">
-    <label className="block text-md font-light text-gray-300">Font</label>
-    <select
-      value={fontChoice}
-      onChange={(e) => setFontChoice(e.target.value)}
-      className="p-2 bg-transparent border border-gray-400 text-gray-100 rounded w-full"
-    >
-      <option value="helvetiker">Helvetiker</option>
-      <option value="optimer">Optimer</option>
-      <option value="gentilis">Gentilis</option>
-      <option value="droid">Droid Sans</option>
-    </select>
-  </div>
-
-  {/* Text Color */}
-  <div className="w-1/5">
-    <label className="block text-md font-light text-gray-300">Text Color</label>
-    <input
-      type="color"
-      value={textColor}
-      onChange={(e) => setTextColor(e.target.value)}
-      className="p-2 w-full rounded-full"
-    />
-  </div>
-
-  {/* Place Diamond Button */}
-  <div className="w-1/5 text-center">
-    <button onClick={handleAddDiamond} className="py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 w-full">
-      Place Diamond
-    </button>
-    <button onClick={handleRotateDiamond} className="py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 w-full mt-2">
-      Rotate Diamond
-    </button>
-  </div>
-
-  {/* Diamond Size Slider */}
-  <div className="w-1/5">
-    <label className="block text-md font-light text-gray-300">Diamond Size</label>
-    <input
-      type="range"
-      min="0.1"
-      max="2"
-      step="0.1"
-      value={diamondSize}
-      onChange={(e) => setDiamondSize(e.target.value)}
-      className="w-full"
-    />
-  </div>
-
-  {/* Text Size Slider */}
-  <div className="w-1/5">
-    <label className="block text-md font-light text-gray-300">Text Size</label>
-    <input
-      type="range"
-      min="0.1"
-      max="2"
-      step="0.1"
-      value={textSize}
-      onChange={(e) => setTextSize(e.target.value)}
-      className="w-full"
-    />
-  </div>
-</div>
-
     </div>
   );
-};
-
-/** Font Loader */
-const loadFont = (fontChoice) => {
-  switch (fontChoice) {
-    case 'helvetiker': return '/fonts/helvetiker_regular.typeface.json';
-    case 'optimer': return '/fonts/optimer_regular.typeface.json';
-    case 'gentilis': return '/fonts/gentilis_regular.typeface.json';
-    case 'droid': return '/fonts/droid_sans_regular.typeface.json';
-    default: return '/fonts/helvetiker_regular.typeface.json';
-  }
 };
 
 export default ModelViewer;

@@ -4,25 +4,47 @@ import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import Layout from './components/Layout';
-import CustomLowBar from './components/CustomLowBar';
 
-// Dynamically import the ModelViewer without server-side rendering (SSR)
+// Dynamically import the ModelViewer and CustomizationPanel without SSR
 const ModelViewerNoSSR = dynamic(() => import('./components/ModelViewer'), { ssr: false });
 const CustomizationPanelNoSSR = dynamic(() => import('./components/CustomizationPanel'), { ssr: false });
 
 export default function Home() {
-  // State to manage the color of the frames and lenses
-  const [frameColor, setFrameColor] = useState('#ffffff'); // Default color for frames (Cartier1 and Cartier7)
-  const [lensColor, setLensColor] = useState('#ffffff'); // Default color for lenses (Cartier3 and Cartier5)
+  const [frameColor, setFrameColor] = useState('#ffffff');
+  const [lensColor, setLensColor] = useState('#ffffff');
+  
+  // State for handling text input and diamond customization
+  const [text, setText] = useState('');
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [textSize, setTextSize] = useState(1);
+  const [diamondSize, setDiamondSize] = useState(1);
+  const [fontChoice, setFontChoice] = useState('helvetiker');
 
-  // Handler to update the frame color
-  const handleFrameColorChange = (color) => {
-    setFrameColor(color); // Update frame color for Cartier1 and Cartier7
+  // States for controlling text/diamond placement
+  const [isPlacingText, setIsPlacingText] = useState(false);
+  const [isPlacingDiamond, setIsPlacingDiamond] = useState(false);
+  const [rotateText, setRotateText] = useState(false);
+  const [rotateDiamond, setRotateDiamond] = useState(false);
+
+  const handleAddText = () => {
+    setIsPlacingText(true); // Trigger text placement in ModelViewer
   };
 
-  // Handler to update the lens color
-  const handleLensColorChange = (color) => {
-    setLensColor(color); // Update lens color for Cartier3 and Cartier5
+  const handleRotateText = () => {
+    setRotateText((prev) => !prev); // Toggle text rotation in ModelViewer
+  };
+
+  const handleAddDiamond = () => {
+    setIsPlacingDiamond(true); // Trigger diamond placement in ModelViewer
+  };
+
+  const handleRotateDiamond = () => {
+    setRotateDiamond((prev) => !prev); // Toggle diamond rotation in ModelViewer
+  };
+
+  const handleLensSwap = () => {
+    console.log('Lens swapped');
+    // Logic to swap lenses
   };
 
   return (
@@ -31,22 +53,44 @@ export default function Home() {
         <title>Sunglasses Customization App</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      
-      {/* Full-Screen ModelViewer as a background */}
-      <ModelViewerNoSSR frameColor={frameColor} lensColor={lensColor} className="fixed inset-0 z-0 pointer-events-none" />
 
-      {/* Main Content */}
-      <div className="relative z-10 flex flex-col md:flex-row w-full h-screen items-center justify-center bg-stone-300">
-        <div className="w-full mr-60 md:w-2/3 mb-80">
-          <CustomLowBar />
-        </div>
-        <div className="flex w-full md:w-1/3 p-4 h-screen items-center justify-center">
-          <CustomizationPanelNoSSR 
-            onFrameColorSelect={handleFrameColorChange} 
-            onLensColorSelect={handleLensColorChange} 
-          />
-        </div>
-      </div>
+      {/* Pass states and handlers to ModelViewer */}
+      <ModelViewerNoSSR 
+        frameColor={frameColor} 
+        lensColor={lensColor} 
+        text={text} 
+        textColor={textColor} 
+        textSize={textSize} 
+        fontChoice={fontChoice} 
+        diamondSize={diamondSize}
+        isPlacingText={isPlacingText}
+        isPlacingDiamond={isPlacingDiamond}
+        setIsPlacingText={setIsPlacingText} // To reset after placing
+        setIsPlacingDiamond={setIsPlacingDiamond} // To reset after placing
+        rotateText={rotateText}
+        rotateDiamond={rotateDiamond}
+      />
+
+      {/* Pass state and handlers to CustomizationPanel */}
+      <CustomizationPanelNoSSR 
+        onFrameColorSelect={(color) => setFrameColor(color)}
+        onLensColorSelect={(color) => setLensColor(color)}
+        text={text}
+        setText={setText}
+        textColor={textColor}
+        setTextColor={setTextColor}
+        textSize={textSize}
+        setTextSize={setTextSize}
+        diamondSize={diamondSize}
+        setDiamondSize={setDiamondSize}
+        fontChoice={fontChoice}
+        setFontChoice={setFontChoice}
+        handleAddText={handleAddText}
+        handleRotateText={handleRotateText}
+        handleAddDiamond={handleAddDiamond}
+        handleRotateDiamond={handleRotateDiamond}
+        handleLensSwap={handleLensSwap}
+      />
     </Layout>
   );
 }

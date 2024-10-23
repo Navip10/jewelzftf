@@ -1,32 +1,23 @@
-
- //CustomLowBar.js
- //creates the customization with description lens and frames
- 
- const CustomLowBar = ({ children }) => {
-    return (
-    <>
-          <div className="flex-col text-black items-center mb-8 w-1/3 ml-44 ">
-            <h1 className="text-black items-center w-40  mb-.5 text-5xl">customize</h1>
-            <sub className="text-black text-lg"> Customize your glasses according to our selections of materials.</sub>
-          </div> 
-          <div className="p-4 flex flex-col md:flex-row justify-between items-center ml-40 mb-96 mx-5 rounded-xl bg-white shadow-md">
-            <div className="flex gap-24">
-              <button className="hover:bg-black hover:text-white p-2 rounded">1. Full View</button> 
-              <button className="hover:bg-black hover:text-white p-2 rounded">2. Lens</button>
-              <button className="hover:bg-black hover:text-white p-2 rounded">3. Frames</button>
-            </div>
-            <div className="flex gap-1">
-              <button className="p-2 rounded-lg border-2 border-black bg-red-100 w-24">Favorite</button>
-              <button className="p-2 rounded-lg border-2 border-black bg-black text-white w-24">Next</button>
-            </div>
-         </div>
-
-          <main>{children}</main>
-      
-    </>
+const CustomLowBar = ({ onLensSwap }) => {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white bg-opacity-90 p-6 shadow-lg flex items-center justify-around">
+      <button className="p-2 rounded-full border-2 border-gray-400 hover:bg-gray-200">
+        1. Full View
+      </button>
+      <button className="p-2 rounded-full border-2 border-gray-400 hover:bg-gray-200" onClick={onLensSwap}>
+        2. Lens
+      </button>
+      <button className="p-2 rounded-full border-2 border-gray-400 hover:bg-gray-200">
+        3. Frames
+      </button>
+      <button className="p-2 rounded-lg border-2 border-black bg-red-100 w-24">
+        Favorite
+      </button>
+      <button className="p-2 rounded-lg border-2 border-black bg-black text-white w-24">
+        Next
+      </button>
+    </div>
   );
- }
- 
- 
+};
+
 export default CustomLowBar;
- 
